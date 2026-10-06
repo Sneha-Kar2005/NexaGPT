@@ -5,9 +5,10 @@ import Link from "next/link";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
 import { Logo } from "./Logo";
 
-export function AuthForm({ mode }: { mode: "login" | "register" }) {
+export function AuthForm({ mode, requireInvite = false }: { mode: "login" | "register"; requireInvite?: boolean }) {
   const isRegister = mode === "register";
   const [name, setName] = useState("");
+  const [inviteCode, setInviteCode] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -26,7 +27,7 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
       const res = await fetch(`/api/auth/${mode}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(isRegister ? { name, email, password } : { email, password }),
+        body: JSON.stringify(isRegister ? { name, email, password, inviteCode } : { email, password }),
       });
       if (!res.ok) {
         const data = (await res.json().catch(() => null)) as { error?: string } | null;
@@ -99,6 +100,19 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
             </button>
           </div>
           {isRegister && <p className="px-5 text-xs text-subtle">At least 8 characters.</p>}
+          {isRegister && requireInvite && (
+            <input
+              type="text"
+              placeholder="Invite code"
+              autoComplete="off"
+              spellCheck={false}
+              required
+              maxLength={100}
+              value={inviteCode}
+              onChange={(e) => setInviteCode(e.target.value)}
+              className={inputClass}
+            />
+          )}
 
           {error && (
             <p role="alert" className="rounded-xl bg-danger/10 px-4 py-2.5 text-sm text-danger">

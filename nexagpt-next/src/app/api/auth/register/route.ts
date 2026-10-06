@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { timingSafeEqual } from "node:crypto";
 import bcrypt from "bcryptjs";
 import { User } from "@/models/User";
 import { Thread } from "@/models/Thread";
@@ -7,16 +8,32 @@ import { createSession } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
-/** Create an account and log in. */
+/** Constant-time comparison so the invite code can't be guessed character by character. */
+function inviteCodeMatches(given: string, expected: string): boolean {
+  const a = Buffer.from(given);
+  const b = Buffer.from(expected);
+  return a.length === b.length && timingSafeEqual(a, b);
+}
+
+/** Create an account and log in. Requires INVITE_CODE when it is set. */
 export async function POST(req: NextRequest) {
   const body = (await req.json().catch(() => null)) as {
     name?: unknown;
     email?: unknown;
     password?: unknown;
+    inviteCode?: unknown;
   } | null;
   const name = typeof body?.name === "string" ? body.name.trim() : "";
   const email = typeof body?.email === "string" ? body.email.trim().toLowerCase() : "";
   const password = typeof body?.password === "string" ? body.password : "";
+
+  const requiredCode = process.env.INVITE_CODE?.trim();
+  if (requiredCode) {
+    const given = typeof body?.inviteCode === "string" ? body.inviteCode.trim() : "";
+    if (!inviteCodeMatches(given, requiredCode)) {
+      return jsonError(given ? "That invite code isn't valid." : "An invite code is required to sign up.", 403);
+    }
+  }
 
   if (!name || name.length > 50) return jsonError("Please enter your name (max 50 characters).", 400);
   if (!EMAIL_RE.test(email) || email.length > 254) return jsonError("Please enter a valid email address.", 400);
